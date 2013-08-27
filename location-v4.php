@@ -325,7 +325,10 @@ class acf_field_location extends acf_field
 				coordinates = mapEvent.latLng.lat()+','+mapEvent.latLng.lng();locateByCoordinates(coordinates)})
 		}
 		function parseComponents(address_components, address) {
-		  var components = {};
+		  var pobox = address.match(/(P\.?O\.?|Post Office) Box \d+/i);
+		  var components = {
+  		  pobox: pobox ? pobox[0] : ''
+		  };
 		  var compiled_street = [];
 		  var i, l;
 		  var map = ['locality', 'postal_code', 'country', 'street_address', 'administrative_area_level_1', 'route', 'street_number'];
@@ -339,25 +342,33 @@ class acf_field_location extends acf_field
     		for  ( i = 0, l = map.length; i < l; ++i ) {
       		var field = map[i];
       		if ( jQuery.inArray(field, component.types) > -1 ) {
+        		if ( address.match(component.long_name + '-') ) {
+          		components[field + '_long'] = address.substring(address.lastIndexOf(component.long_name));
+        		} else {
+          		components[field + '_long'] = component.long_name;
+        		}
         		components[field] = component.short_name;
-        		components[field + '_long'] = component.long_name;
       		}
     		}
   		});
+  		if ( ! compiled_street[0] ) {
+    		compiled_street[0] = address.match(/^\d+/)[0];
+  		}
   		if ( ! components.street_address ) {
     		components.street_address = compiled_street.join(' ');
   		}
-  		address = address.replace(/[^\da-zA-Z ]/g, '');
+  		address = address.replace(/[^\da-zA-Z -]/g, '');
   		for ( var p in components ) {
   		  var parts = components[p].split(' ');
   		  for ( i = 0, l = parts.length; i < l; ++i ) {
-    		  address = address.replace(new RegExp('\\b' + parts[i] + '\\b', 'i'), '');
+  		    //console.log(new RegExp('\\b' + parts[i].replace(/\./g, '') + '\\b', 'i'));
+    		  address = address.replace(new RegExp('\\b' + parts[i].replace(/\./g, '') + '\\b', 'i'), '');
   		  }
-    		console.log(address);
+    		//console.log(address);
   		}
   		address = address.replace(/^\s+|\s+$/g, '');
   		if ( address ) {
-    		components.street_address += '<br>' + address;
+    		components.street_address += (address.match(/\d/) ? '<br>' : ' ') + address;
   		}
   		return components;
 		}
@@ -368,7 +379,7 @@ class acf_field_location extends acf_field
 				  components = parseComponents(results[0].address_components, address);
 					addMarker(results[0].geometry.location,address);
 					coordinates = results[0].geometry.location.lat()+','+results[0].geometry.location.lng();
-					coordinatesAddressInput.value = [address, coordinates, components.street_address, components.locality_long, components.administrative_area_level_1, components.administrative_area_level_1_long, components.postal_code, components.country_long].join('|');
+					coordinatesAddressInput.value = [address, coordinates, components.street_address, components.locality_long, components.administrative_area_level_1, components.administrative_area_level_1_long, components.postal_code_long, components.country_long, components.pobox].join('|');
 					ddAddress.innerHTML=address;
 					ddCoordinates.innerHTML = coordinates
 				}
@@ -534,12 +545,13 @@ class acf_field_location extends acf_field
   		$value = array(
   		  'coordinates' => $value[1],
   		  'address' => $value[0],
-  		  'street_address' => $value[2],
-  		  'locality' => $value[3],
-  		  'region' => $value[4],
-  		  'region_full' => $value[5],
-  		  'postal_code' => $value[6],
-  		  'country' => $value[7],
+  		  'street_address' => isset($value[2]) ? $value[2] : '',
+  		  'locality' => isset($value[3]) ? $value[3] : '',
+  		  'region' => isset($value[4]) ? $value[4] : '',
+  		  'region_full' => isset($value[5]) ? $value[5] : '',
+  		  'postal_code' => isset($value[6]) ? $value[6] : '',
+  		  'country' => isset($value[7]) ? $value[7] : '',
+  		  'po' => isset($value[8]) ? $value[8] : '',
 		  );
 		}
 		else
@@ -556,5 +568,3 @@ class acf_field_location extends acf_field
 
 // create field
 new acf_field_location();
-
-?>
