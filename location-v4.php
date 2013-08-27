@@ -5,8 +5,8 @@ class acf_field_location extends acf_field
 	// vars
 	var $settings, // will hold info such as dir / path
 		$defaults; // will hold default field options
-		
-		
+
+
 	/*
 	*  __construct
 	*
@@ -15,7 +15,7 @@ class acf_field_location extends acf_field
 	*  @since	3.6
 	*  @date	23/01/13
 	*/
-	
+
 	function __construct()
 	{
 		// vars
@@ -32,23 +32,23 @@ class acf_field_location extends acf_field
 			'streetViewControl'	=>	1,
 			'PointOfInterest'	=>	1,
 		);
-		
-		
+
+
 		// do not delete!
     	parent::__construct();
-    	
-    	
+
+
     	// settings
 		$this->settings = array(
 			'path' => apply_filters('acf/helpers/get_path', __FILE__),
 			'dir' => apply_filters('acf/helpers/get_dir', __FILE__),
 			'version' => '1.0.0'
 		);
-		
+
 
 	}
-	
-	
+
+
 	/*
 	*  input_admin_enqueue_scripts()
 	*
@@ -65,9 +65,9 @@ class acf_field_location extends acf_field
 	{
 		// register acf scripts
 		//wp_register_script( 'acf-input-location', $this->settings['dir'] . 'js/input.js', array('acf-input'), $this->settings['version'] );
-		wp_register_style( 'acf-input-location', $this->settings['dir'] . 'css/input.css', array('acf-input'), $this->settings['version'] ); 
-		
-		
+		wp_register_style( 'acf-input-location', $this->settings['dir'] . 'css/input.css', array('acf-input'), $this->settings['version'] );
+
+
 		// scripts
 		wp_enqueue_script(array(
 			//'acf-input-location',	PHP in JS? What the?
@@ -75,12 +75,12 @@ class acf_field_location extends acf_field
 
 		// styles
 		wp_enqueue_style(array(
-			'acf-input-location',	
+			'acf-input-location',
 		));
-		
+
 	}
-	
-	
+
+
 	/*
 	*  input_admin_head()
 	*
@@ -97,8 +97,8 @@ class acf_field_location extends acf_field
 	{
 		echo '<script src="https://maps.googleapis.com/maps/api/js?sensor=false" type="text/javascript"></script>';
 	}
-	
-	
+
+
 	/*
 	*  create_options()
 	*
@@ -111,17 +111,17 @@ class acf_field_location extends acf_field
 	*
 	*  @param	$field	- an array holding all the field's data
 	*/
-	
+
 	function create_options( $field )
 	{
 		// defaults
 		$field = array_merge($this->defaults, $field);
-		
-		
+
+
 		// key is needed in the field names to correctly save the data
 		$key = $field['name'];
-		
-		
+
+
 		// Create Field Options HTML
 		?>
 <tr class="field_option field_option_<?php echo $this->name; ?>">
@@ -137,7 +137,8 @@ class acf_field_location extends acf_field
 			'layout' => 'horizontal',
 			'choices' => array(
 				'address' => __('Coordinates & Address', 'acf-location-field'),
-				'coordinates' => __('Coordinates', 'acf-location-field')
+				'coordinates' => __('Coordinates', 'acf-location-field'),
+				'allparts' => __('All Parts', 'acf-location-field'),
 			)
 		));
 		?>
@@ -277,10 +278,10 @@ class acf_field_location extends acf_field
 
 
 		<?php
-		
+
 	}
-	
-	
+
+
 	/*
 	*  create_field()
 	*
@@ -292,12 +293,12 @@ class acf_field_location extends acf_field
 	*  @since	3.6
 	*  @date	23/01/13
 	*/
-	
+
 	function create_field( $field )
 	{
 		// defaults
 		$field = array_merge($this->defaults, $field);
-		
+
 		// Build an unique id based on ACF's one.
 		$pattern = array('/\[/', '/\]/');
 		$replace = array('_', '');
@@ -323,12 +324,47 @@ class acf_field_location extends acf_field
 			google.maps.event.addListener(marker,'dragend',function(mapEvent){
 				coordinates = mapEvent.latLng.lat()+','+mapEvent.latLng.lng();locateByCoordinates(coordinates)})
 		}
+		function parseComponents(address_components) {
+		  var components = {};
+		  var compiled_street = [];
+		  var map = {
+		    long_name: ['locality', 'postal_code', 'country', 'street_address'],
+		    short_name: ['administrative_area_level_1']
+		  };
+  		jQuery.each(address_components, function(i, component) {
+    		if ( jQuery.inArray('street_number', component.types) > -1 ) {
+      		compiled_street[0] = component.long_name;
+    		}
+    		if ( jQuery.inArray('route', component.types) > -1 ) {
+      		compiled_street[1] = component.long_name;
+    		}
+    		for ( var p in map ) {
+      		for  ( var i = 0, l = map[p].length; i < l; ++i ) {
+        		var field = map[p][i];
+        		if ( jQuery.inArray(field, component.types) > -1 ) {
+          		components[field] = component[p];
+          		if ( p === 'short_name' ) {
+          		  components[field + '_long'] = component.long_name;
+          		}
+        		}
+      		}
+    		}
+  		});
+  		if ( ! components.street_address ) {
+    		components.street_address = compiled_street.join(' ');
+  		}
+  		return components;
+		}
 		function locateByAddress(address){
 			geocoder.geocode({'address':address},function(results,status){
+			  var components;
 				if(status == google.maps.GeocoderStatus.OK){
+				  components = parseComponents(results[0].address_components);
+				  console.log(components);
 					addMarker(results[0].geometry.location,address);
 					coordinates = results[0].geometry.location.lat()+','+results[0].geometry.location.lng();
-					coordinatesAddressInput.value = address+'|'+coordinates;ddAddress.innerHTML=address;
+					coordinatesAddressInput.value = [address, coordinates, components.street_address, components.locality, components.administrative_area_level_1, components.administrative_area_level_1_long, components.postal_code, components.country].join('|');
+					ddAddress.innerHTML=address;
 					ddCoordinates.innerHTML = coordinates
 				}
 				else{
@@ -377,7 +413,7 @@ class acf_field_location extends acf_field
 			lng = <?php echo $center[1];?>
 		}
 		latlng = new google.maps.LatLng(lat,lng);
-		
+
 		// Enable the visual refresh
 		google.maps.visualRefresh = true;
 
@@ -469,16 +505,16 @@ class acf_field_location extends acf_field
 	*
 	*  @return	$value	- the modified value
 	*/
-	
+
 	function format_value_for_api( $value, $post_id, $field )
 	{
 		// defaults
 		$field = array_merge($this->defaults, $field);
-	
+
 
 		// format value
 		$value = explode('|', $value);
-		
+
 
     // check that we have a value
     $value = array_filter( $value );
@@ -488,15 +524,28 @@ class acf_field_location extends acf_field
 		{
 			$value = array( 'coordinates' => $value[1], 'address' => $value[0] );
 		}
+		elseif ( $field['val'] == 'allparts' )
+		{
+  		$value = array(
+  		  'coordinates' => $value[1],
+  		  'address' => $value[0],
+  		  'street_address' => $value[2],
+  		  'locality' => $value[3],
+  		  'region' => $value[4],
+  		  'region_full' => $value[5],
+  		  'postal_code' => $value[6],
+  		  'country' => $value[7],
+		  );
+		}
 		else
 		{
 			$value = $value[1];
 		}
-	
+
 		return $value;
-				
+
 	}
-	
+
 }
 
 
