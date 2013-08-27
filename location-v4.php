@@ -324,13 +324,11 @@ class acf_field_location extends acf_field
 			google.maps.event.addListener(marker,'dragend',function(mapEvent){
 				coordinates = mapEvent.latLng.lat()+','+mapEvent.latLng.lng();locateByCoordinates(coordinates)})
 		}
-		function parseComponents(address_components) {
+		function parseComponents(address_components, address) {
 		  var components = {};
 		  var compiled_street = [];
-		  var map = {
-		    long_name: ['locality', 'postal_code', 'country', 'street_address'],
-		    short_name: ['administrative_area_level_1']
-		  };
+		  var i, l;
+		  var map = ['locality', 'postal_code', 'country', 'street_address', 'administrative_area_level_1', 'route', 'street_number'];
   		jQuery.each(address_components, function(i, component) {
     		if ( jQuery.inArray('street_number', component.types) > -1 ) {
       		compiled_street[0] = component.long_name;
@@ -338,20 +336,28 @@ class acf_field_location extends acf_field
     		if ( jQuery.inArray('route', component.types) > -1 ) {
       		compiled_street[1] = component.long_name;
     		}
-    		for ( var p in map ) {
-      		for  ( var i = 0, l = map[p].length; i < l; ++i ) {
-        		var field = map[p][i];
-        		if ( jQuery.inArray(field, component.types) > -1 ) {
-          		components[field] = component[p];
-          		if ( p === 'short_name' ) {
-          		  components[field + '_long'] = component.long_name;
-          		}
-        		}
+    		for  ( i = 0, l = map.length; i < l; ++i ) {
+      		var field = map[i];
+      		if ( jQuery.inArray(field, component.types) > -1 ) {
+        		components[field] = component.short_name;
+        		components[field + '_long'] = component.long_name;
       		}
     		}
   		});
   		if ( ! components.street_address ) {
     		components.street_address = compiled_street.join(' ');
+  		}
+  		address = address.replace(/[^\da-zA-Z ]/g, '');
+  		for ( var p in components ) {
+  		  var parts = components[p].split(' ');
+  		  for ( i = 0, l = parts.length; i < l; ++i ) {
+    		  address = address.replace(new RegExp('\\b' + parts[i] + '\\b', 'i'), '');
+  		  }
+    		console.log(address);
+  		}
+  		address = address.replace(/^\s+|\s+$/g, '');
+  		if ( address ) {
+    		components.street_address += '<br>' + address;
   		}
   		return components;
 		}
@@ -359,11 +365,10 @@ class acf_field_location extends acf_field
 			geocoder.geocode({'address':address},function(results,status){
 			  var components;
 				if(status == google.maps.GeocoderStatus.OK){
-				  components = parseComponents(results[0].address_components);
-				  console.log(components);
+				  components = parseComponents(results[0].address_components, address);
 					addMarker(results[0].geometry.location,address);
 					coordinates = results[0].geometry.location.lat()+','+results[0].geometry.location.lng();
-					coordinatesAddressInput.value = [address, coordinates, components.street_address, components.locality, components.administrative_area_level_1, components.administrative_area_level_1_long, components.postal_code, components.country].join('|');
+					coordinatesAddressInput.value = [address, coordinates, components.street_address, components.locality_long, components.administrative_area_level_1, components.administrative_area_level_1_long, components.postal_code, components.country_long].join('|');
 					ddAddress.innerHTML=address;
 					ddCoordinates.innerHTML = coordinates
 				}
