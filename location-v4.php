@@ -334,30 +334,31 @@ class acf_field_location extends acf_field
 		  var map = ['locality', 'postal_code', 'country', 'street_address', 'administrative_area_level_1', 'route', 'street_number'];
   		jQuery.each(address_components, function(i, component) {
     		if ( jQuery.inArray('street_number', component.types) > -1 ) {
-      		compiled_street[0] = component.long_name;
+      		compiled_street[0] = component.long_name.replace('Farm to Market', 'FM');
     		}
     		if ( jQuery.inArray('route', component.types) > -1 ) {
-      		compiled_street[1] = component.long_name;
+      		compiled_street[1] = component.long_name.replace('Farm to Market', 'FM');
     		}
     		for  ( i = 0, l = map.length; i < l; ++i ) {
       		var field = map[i];
       		if ( jQuery.inArray(field, component.types) > -1 ) {
         		if ( address.match(component.long_name + '-') ) {
-          		components[field + '_long'] = address.substring(address.lastIndexOf(component.long_name));
+          		components[field + '_long'] = address.substring(address.lastIndexOf(component.long_name)).replace('Farm to Market', 'FM');
         		} else {
-          		components[field + '_long'] = component.long_name;
+          		components[field + '_long'] = component.long_name.replace('Farm to Market', 'FM');
         		}
-        		components[field] = component.short_name;
+        		components[field] = component.short_name.replace('Farm to Market', 'FM');
       		}
     		}
   		});
   		if ( ! compiled_street[0] ) {
-    		compiled_street[0] = address.match(/^\d+/)[0];
+  		  street_number = address.match(/^\d+/);
+    		compiled_street[0] = street_number || '';
   		}
   		if ( ! components.street_address ) {
     		components.street_address = compiled_street.join(' ');
   		}
-  		address = address.replace(/[^\da-zA-Z -]/g, '');
+  		address = address.replace(/[^\da-zA-Z -]/g, ' ');
   		for ( var p in components ) {
   		  var parts = components[p].split(' ');
   		  for ( i = 0, l = parts.length; i < l; ++i ) {
