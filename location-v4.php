@@ -324,6 +324,16 @@ class acf_field_location extends acf_field
 			google.maps.event.addListener(marker,'dragend',function(mapEvent){
 				coordinates = mapEvent.latLng.lat()+','+mapEvent.latLng.lng();locateByCoordinates(coordinates)})
 		}
+		function findIndex(componentLong, componentShort) {
+  		if ( this === window ) return false;
+  		var index = this.indexOf(componentLong);
+  		var length = componentLong.length;
+  		if ( index < 0 ) {
+    		index = this.indexOf(componentShort);
+    		length = componentShort.length;
+  		}
+  		return index < 0 ? false : [index, length];
+		}
 		function parseComponents(address_components, address) {
 		  var pobox = address.match(/(P\.?O\.?|Post Office) Box \d+/i);
 		  var components = {
@@ -351,21 +361,30 @@ class acf_field_location extends acf_field
       		}
     		}
   		});
+
   		if ( ! compiled_street[0] ) {
   		  street_number = address.match(/^\d+/);
     		compiled_street[0] = street_number || '';
   		}
+
+  		var routeIndex = findIndex.call(address, components.route_long, components.route);
+  		var locIndex = findIndex.call(address, components.locality_long, components.locality);
+  		var regIndex = findIndex.call(address, components.administrative_area_level_1_long, components.administrative_area_level_1);
+  		var countryIndex = findIndex.call(address, components.country_long, components.country);
+
   		if ( ! components.street_address ) {
-    		components.street_address = compiled_street.join(' ');
+  		  components.street_address = routeIndex ? address.substring(0, routeIndex[0] + routeIndex[1]) : compiled_street.join(' ');
   		}
+  		if ( locIndex ) {
+    		components.locality_long = address.substring(locIndex[0], regIndex ? regIndex[0] : countryIndex ? countryIndex[0] : locIndex[1]).replace(/^\s+|\s+$/g, '');
+		  }
+
   		address = address.replace(/[^\da-zA-Z -]/g, ' ');
   		for ( var p in components ) {
   		  var parts = components[p].split(' ');
   		  for ( i = 0, l = parts.length; i < l; ++i ) {
-  		    //console.log(new RegExp('\\b' + parts[i].replace(/\./g, '') + '\\b', 'i'));
-    		  address = address.replace(new RegExp('\\b' + parts[i].replace(/\./g, '') + '\\b', 'i'), '');
+    		  address = address.replace(new RegExp('\\b' + parts[i].replace(/\./g, '') + '\|' + parts[i].replace(/\./g, ' ').replace(/^\s|\s+$/g, '') + '\\b', 'i'), '');
   		  }
-    		//console.log(address);
   		}
   		address = address.replace(/^\s+|\s+$/g, '');
   		if ( address ) {
