@@ -313,205 +313,237 @@ class acf_field_location extends acf_field
 		$mapheight = $field['mapheight'];
 		?>
 <script type="text/javascript">
-	function location_init(uid){
-		function addMarker(position,address){
-			if(marker){marker.setMap(null)}
-			marker = new google.maps.Marker({map:map,position:position,title:address,draggable:true});
-			map.setCenter(position);
-			dragdropMarker()
-		}
-		function dragdropMarker(){
-			google.maps.event.addListener(marker,'dragend',function(mapEvent){
-				coordinates = mapEvent.latLng.lat()+','+mapEvent.latLng.lng();locateByCoordinates(coordinates)})
-		}
-		function findIndex(componentLong, componentShort) {
-  		if ( this === window ) return false;
-  		var index = this.indexOf(componentLong);
-  		var length = componentLong.length;
-  		if ( index < 0 ) {
-    		index = this.indexOf(componentShort);
-    		length = componentShort.length;
-  		}
-  		return index < 0 ? false : [index, length];
-		}
-		function parseComponents(address_components, address) {
-		  var pobox = address.match(/(P\.?O\.?|Post Office) Box \d+/i);
-		  var components = {
-  		  pobox: pobox ? pobox[0] : ''
-		  };
-		  var compiled_street = [];
-		  var i, l;
-		  var map = ['locality', 'postal_code', 'country', 'street_address', 'administrative_area_level_1', 'route', 'street_number'];
-  		jQuery.each(address_components, function(i, component) {
-    		if ( jQuery.inArray('street_number', component.types) > -1 ) {
-      		compiled_street[0] = component.long_name.replace('Farm to Market', 'FM');
-    		}
-    		if ( jQuery.inArray('route', component.types) > -1 ) {
-      		compiled_street[1] = component.long_name.replace('Farm to Market', 'FM');
-    		}
-    		for  ( i = 0, l = map.length; i < l; ++i ) {
-      		var field = map[i];
-      		if ( jQuery.inArray(field, component.types) > -1 ) {
-        		if ( address.match(component.long_name + '-') ) {
-          		components[field + '_long'] = address.substring(address.lastIndexOf(component.long_name)).replace('Farm to Market', 'FM');
-        		} else {
-          		components[field + '_long'] = component.long_name.replace('Farm to Market', 'FM');
-        		}
-        		components[field] = component.short_name.replace('Farm to Market', 'FM');
-      		}
-    		}
-  		});
+  function location_init(uid) {
+      function addMarker(position, address) {
+          if (marker) {
+              marker.setMap(null)
+          }
+          marker = new google.maps.Marker({
+              map: map,
+              position: position,
+              title: address,
+              draggable: true
+          });
+          map.setCenter(position);
+          dragdropMarker()
+      }
 
-  		if ( ! compiled_street[0] ) {
-  		  street_number = address.match(/^\d+/);
-    		compiled_street[0] = street_number || '';
-  		}
+      function dragdropMarker() {
+          google.maps.event.addListener(marker, 'dragend', function (mapEvent) {
+              coordinates = mapEvent.latLng.lat() + ',' + mapEvent.latLng.lng();
+              locateByCoordinates(coordinates)
+          })
+      }
 
-  		var routeIndex = findIndex.call(address, components.route_long, components.route);
-  		var locIndex = findIndex.call(address, components.locality_long, components.locality);
-  		var regIndex = findIndex.call(address, components.administrative_area_level_1_long, components.administrative_area_level_1);
-  		var countryIndex = findIndex.call(address, components.country_long, components.country);
+      function findIndex(componentLong, componentShort) {
+          if (this === window || (!componentLong && !componentShort)) return false;
+          var index = this.indexOf(componentLong);
+          var length = componentLong.length;
+          if (index < 0) {
+              index = this.indexOf(componentShort);
+              length = componentShort.length;
+          }
+          return index < 0 ? false : [index, length];
+      }
+      function trim(text) {
+          return text && text.replace(/^\s+|\s+$/g, '');
+      }
 
-  		if ( ! components.street_address ) {
-  		  components.street_address = routeIndex ? address.substring(0, routeIndex[0] + routeIndex[1]) : compiled_street.join(' ');
-  		}
-  		if ( locIndex ) {
-    		components.locality_long = address.substring(locIndex[0], regIndex ? regIndex[0] : countryIndex ? countryIndex[0] : locIndex[1]).replace(/^\s+|\s+$/g, '');
-		  }
+      function parseComponents(address_components, address) {
+          var pobox = address.match(/(P\.?O\.?|Post Office) Box \d+/i);
+          var components = {
+              pobox: pobox ? pobox[0] : ''
+          };
+          var compiled_street = [];
+          var i, l;
+          var map = ['locality', 'postal_code', 'country', 'street_address', 'administrative_area_level_1', 'route', 'street_number'];
+          jQuery.each(address_components, function (i, component) {
+              if (jQuery.inArray('street_number', component.types) > -1) {
+                  compiled_street[0] = component.long_name.replace('Farm to Market', 'FM');
+              }
+              if (jQuery.inArray('route', component.types) > -1) {
+                  compiled_street[1] = component.long_name.replace('Farm to Market', 'FM');
+              }
+              for (i = 0, l = map.length; i < l; ++i) {
+                  var field = map[i];
+                  if (jQuery.inArray(field, component.types) > -1) {
+                      if (address.match(component.long_name + '-')) {
+                          components[field + '_long'] = address.substring(address.lastIndexOf(component.long_name)).replace('Farm to Market', 'FM');
+                      } else {
+                          components[field + '_long'] = component.long_name.replace('Farm to Market', 'FM');
+                      }
+                      components[field] = component.short_name.replace('Farm to Market', 'FM');
+                  }
+              }
+          });
+          if (!compiled_street[0]) {
+              street_number = address.match(/^\d+ /);
+              compiled_street[0] = street_number ? trim(street_number[0]) : '';
+          }
+          var routeIndex = findIndex.call(address, components.route_long, components.route);
+          var locIndex = findIndex.call(address, components.locality_long, components.locality);
+          var regIndex = findIndex.call(address, components.administrative_area_level_1_long, components.administrative_area_level_1);
+          var countryIndex = findIndex.call(address, components.country_long, components.country);
+          if (!components.street_address) {
+              components.street_address = routeIndex ? address.substring(0, routeIndex[0] + routeIndex[1]).replace(/,/g, '') : compiled_street.join(' ').replace(/,/g, '');
+          }
+          if (locIndex) {
+              var end = regIndex ? regIndex[0] : countryIndex ? countryIndex[0] : locIndex[0] + locIndex[1];
+              if ( end > locIndex[0] + locIndex[1] ) {
+                components.locality_long = trim(address.substring(locIndex[0], regIndex ? regIndex[0] : countryIndex ? countryIndex[0] : locIndex[1])).replace(/,/g, '');
+              }
+          }
+          if (!components.postal_code) {
+              var start = 0;
+              if (countryIndex) {
+                  start = countryIndex[0] + countryIndex[1];
+              } else if (regIndex) {
+                  start = regIndex[0] + regIndex[1];
+              } else if (locIndex) {
+                  start = locIndex[0] + locIndex[1];
+              }
+              components.postal_code_long = trim(address.substr(start));
+          }
+          address = address.replace(/[^\da-zA-Z -]/g, ' ');
+          var parts = trim(components.street_address).split(' ');
+          for (i = 0, l = parts.length; i < l; ++i) {
+              address = address.replace(new RegExp('\\b' + trim(parts[i].replace(/\./g, '') + '\|' + parts[i].replace(/\./g, ' ')) + '\\b', 'i'), '');
+          }
+          for (var p in components) {
+              if ( p === 'street_address' || ! trim(components[p]) ) continue;
+              parts = trim(components[p]).split(' ');
+              for (i = 0, l = parts.length; i < l; ++i) {
+                  address = address.replace(new RegExp('\\b' + trim(parts[i].replace(/\./g, '') + '\|' + parts[i].replace(/\./g, ' ')) + '\\b', 'i'), '');
+              }
+          }
+          address = trim(address);
+          if (address) {
+              components.street_address += (components.street_address && address.match(/\d/) ? '<br>' : ' ') + address;
+          }
+          console.log(components);
+          return components;
+      }
 
-  		address = address.replace(/[^\da-zA-Z -]/g, ' ');
-  		for ( var p in components ) {
-  		  var parts = components[p].split(' ');
-  		  for ( i = 0, l = parts.length; i < l; ++i ) {
-    		  address = address.replace(new RegExp('\\b' + parts[i].replace(/\./g, '') + '\|' + parts[i].replace(/\./g, ' ').replace(/^\s|\s+$/g, '') + '\\b', 'i'), '');
-  		  }
-  		}
-  		address = address.replace(/^\s+|\s+$/g, '');
-  		if ( address ) {
-    		components.street_address += (address.match(/\d/) ? '<br>' : ' ') + address;
-  		}
-  		return components;
-		}
-		function locateByAddress(address){
-			geocoder.geocode({'address':address},function(results,status){
-			  var components;
-				if(status == google.maps.GeocoderStatus.OK){
-				  components = parseComponents(results[0].address_components, address);
-					addMarker(results[0].geometry.location,address);
-					coordinates = results[0].geometry.location.lat()+','+results[0].geometry.location.lng();
-					coordinatesAddressInput.value = [address, coordinates, components.street_address, components.locality_long, components.administrative_area_level_1, components.administrative_area_level_1_long, components.postal_code_long, components.country_long, components.pobox].join('|');
-					ddAddress.innerHTML=address;
-					ddCoordinates.innerHTML = coordinates
-				}
-				else{
-					alert("<?php _e("This address could not be found: ",'acf-location-field');?>"+status)
-				}
-			})
-		}
-		function locateByCoordinates(coordinates){
-			latlngTemp = coordinates.split(',',2);
-			lat = parseFloat(latlngTemp[0]);
-			lng = parseFloat(latlngTemp[1]);
-			latlng = new google.maps.LatLng(lat,lng);
-			geocoder.geocode({'latLng':latlng},function(results,status){
-				if(status == google.maps.GeocoderStatus.OK){
-					address = results[0].formatted_address;addMarker(latlng,address);
-					coordinatesAddressInput.value = address+'|'+coordinates;ddAddress.innerHTML=address;ddCoordinates.innerHTML=coordinates
-				}
-				else{
-					alert("<?php _e("This place could not be found: ",'acf-location-field');?>"+status)
-				}
-			})
-		}
-		var map,lat,lng,latlng,marker,coordinates,address,val;
-		var geocoder = new google.maps.Geocoder();
-		var ddAddress = document.getElementById('location_dd-address_'+uid);
-		var dtAddress = document.getElementById('location_dt-address_'+uid);
-		var ddCoordinates = document.getElementById('location_dd-coordinates_'+uid);
-		var locationInput = document.getElementById('location_input_'+uid);
-		var location = locationInput.value;
-		var coordinatesAddressInput = document.getElementById('location_coordinates-address_'+uid);
-		var coordinatesAddress = coordinatesAddressInput.value;
-		if(coordinatesAddress){
-			var coordinatesAddressTemp = coordinatesAddress.split('|',2);
-			coordinates = coordinatesAddressTemp[1];
-			address = coordinatesAddressTemp[0]
-		}if(address){
-			ddAddress.innerHTML = address
-		}
-		if(coordinates){
-			ddCoordinates.innerHTML = coordinates;
-			var latlngTemp = coordinates.split(',',2);
-			lat = parseFloat(latlngTemp[0]);
-			lng = parseFloat(latlngTemp[1])
-		}else{
-			lat = <?php echo $center[0];?>;
-			lng = <?php echo $center[1];?>
-		}
-		latlng = new google.maps.LatLng(lat,lng);
+      function locateByAddress(address) {
+          geocoder.geocode({
+              'address': address
+          }, function (results, status) {
+              var components;
+              if (status == google.maps.GeocoderStatus.OK) {
+                  components = parseComponents(results[0].address_components, address);
+                  addMarker(results[0].geometry.location, address);
+                  coordinates = results[0].geometry.location.lat() + ',' + results[0].geometry.location.lng();
+                  coordinatesAddressInput.value = [address, coordinates, components.street_address, components.locality_long, components.administrative_area_level_1, components.administrative_area_level_1_long, components.postal_code_long, components.country_long, components.pobox].join('|');
+                  ddAddress.innerHTML = address;
+                  ddCoordinates.innerHTML = coordinates
+              } else {
+                  alert("<?php _e("This address could not be found: ",'acf-location-field');?>" + status)
+              }
+          })
+      }
 
-		// Enable the visual refresh
-		google.maps.visualRefresh = true;
-
-		var mapOptions = {
-			zoom:<?php echo $zoom;?>,
-			mapTypeControl: <?php echo $mapTypeControl; ?>,
-			streetViewControl: <?php echo $streetViewControl; ?>,
-			center:latlng,
-			mapTypeId:google.maps.MapTypeId.ROADMAP,scrollwheel: <?php echo $scrollwheel; ?>,
-			styles:[{
-				featureType:"poi",
-				elementType:"labels",
-				stylers:[{
-					visibility:"<?php if ($PointOfInterest == true) echo 'on'; else echo 'off' ?>"
-					}]
-				}]
-		};
-		map = new google.maps.Map(document.getElementById('location_map_'+uid),mapOptions);
-		var mapdiv = document.getElementById('location_map_'+uid);
-		mapdiv.style.height = '<?php echo $mapheight; ?>px';
-		if(coordinates){
-			addMarker(map.getCenter())
-		}
-		google.maps.event.addListener(map,'click',function(point){
-			locateByCoordinates(point.latLng.lat()+','+point.latLng.lng())
-		});
-		locationInput.addEventListener('keypress',function(event){
-			if(event.keyCode == 13){
-				location=locationInput.value;
-				var regexp = new RegExp('^\-?[0-9]{1,3}\.[0-9]{6,},\-?[0-9]{1,3}\.[0-9]{6,}$');
-				if(location){
-					if(regexp.test(location)){
-						locateByCoordinates(location)
-					}
-					else{
-						locateByAddress(location)}
-					}
-					event.stopPropagation();
-					event.preventDefault();
-					return false
-				}
-			},false);
-		dtAddress.addEventListener('click',function(){
-			if(coordinates){
-				locateByCoordinates(coordinates)
-			}
-		},false)
-	};
-
-	jQuery(document).ready(function(){
-		location_init("<?php echo $uid;?>");
-	});
-	var mapids = Array();
-	jQuery(document).on('acf/setup_fields',function(e){
-		var new_uid = jQuery(".repeater .row input[id*=location_coordinates]").not(".exsist").last().attr("id");
-
-		if(new_uid) {
-			new_uid = new_uid.replace("location_coordinates-address_","");
-			location_init(new_uid);
-			jQuery(".repeater .row input[id*=location_coordinates]").addClass("exsist");
-		}
-	});
+      function locateByCoordinates(coordinates) {
+          latlngTemp = coordinates.split(',', 2);
+          lat = parseFloat(latlngTemp[0]);
+          lng = parseFloat(latlngTemp[1]);
+          latlng = new google.maps.LatLng(lat, lng);
+          geocoder.geocode({
+              'latLng': latlng
+          }, function (results, status) {
+              if (status == google.maps.GeocoderStatus.OK) {
+                  address = results[0].formatted_address;
+                  addMarker(latlng, address);
+                  coordinatesAddressInput.value = address + '|' + coordinates;
+                  ddAddress.innerHTML = address;
+                  ddCoordinates.innerHTML = coordinates
+              } else {
+                  alert("<?php _e("This place could not be found: ",'acf-location-field');?>" + status)
+              }
+          })
+      }
+      var map, lat, lng, latlng, marker, coordinates, address, val;
+      var geocoder = new google.maps.Geocoder();
+      var ddAddress = document.getElementById('location_dd-address_' + uid);
+      var dtAddress = document.getElementById('location_dt-address_' + uid);
+      var ddCoordinates = document.getElementById('location_dd-coordinates_' + uid);
+      var locationInput = document.getElementById('location_input_' + uid);
+      var location = locationInput.value;
+      var coordinatesAddressInput = document.getElementById('location_coordinates-address_' + uid);
+      var coordinatesAddress = coordinatesAddressInput.value;
+      if (coordinatesAddress) {
+          var coordinatesAddressTemp = coordinatesAddress.split('|', 2);
+          coordinates = coordinatesAddressTemp[1];
+          address = coordinatesAddressTemp[0]
+      }
+      if (address) {
+          ddAddress.innerHTML = address
+      }
+      if (coordinates) {
+          ddCoordinates.innerHTML = coordinates;
+          var latlngTemp = coordinates.split(',', 2);
+          lat = parseFloat(latlngTemp[0]);
+          lng = parseFloat(latlngTemp[1])
+      } else {
+          lat = <?php echo $center[0]; ?> ;
+          lng = <?php echo $center[1]; ?>
+      }
+      latlng = new google.maps.LatLng(lat, lng);
+      // Enable the visual refresh
+      google.maps.visualRefresh = true;
+      var mapOptions = {
+          zoom: <?php echo $zoom; ?> , mapTypeControl: <?php echo $mapTypeControl; ?> , streetViewControl: <?php echo $streetViewControl; ?> , center: latlng,
+          mapTypeId: google.maps.MapTypeId.ROADMAP,
+          scrollwheel: <?php echo $scrollwheel; ?> , styles: [{
+              featureType: "poi",
+              elementType: "labels",
+              stylers: [{
+                  visibility: "<?php if ($PointOfInterest == true) echo 'on'; else echo 'off' ?>"
+              }]
+          }]
+      };
+      map = new google.maps.Map(document.getElementById('location_map_' + uid), mapOptions);
+      var mapdiv = document.getElementById('location_map_' + uid);
+      mapdiv.style.height = '<?php echo $mapheight; ?>px';
+      if (coordinates) {
+          addMarker(map.getCenter())
+      }
+      google.maps.event.addListener(map, 'click', function (point) {
+          locateByCoordinates(point.latLng.lat() + ',' + point.latLng.lng())
+      });
+      locationInput.addEventListener('keypress', function (event) {
+          if (event.keyCode == 13) {
+              location = locationInput.value;
+              var regexp = new RegExp('^\-?[0-9]{1,3}\.[0-9]{6,},\-?[0-9]{1,3}\.[0-9]{6,}$');
+              if (location) {
+                  if (regexp.test(location)) {
+                      locateByCoordinates(location)
+                  } else {
+                      locateByAddress(location)
+                  }
+              }
+              event.stopPropagation();
+              event.preventDefault();
+              return false
+          }
+      }, false);
+      dtAddress.addEventListener('click', function () {
+          if (coordinates) {
+              locateByCoordinates(coordinates)
+          }
+      }, false)
+  };
+  jQuery(document).ready(function () {
+      location_init("<?php echo $uid;?>");
+  });
+  var mapids = Array();
+  jQuery(document).on('acf/setup_fields', function (e) {
+      var new_uid = jQuery(".repeater .row input[id*=location_coordinates]").not(".exsist").last().attr("id");
+      if (new_uid) {
+          new_uid = new_uid.replace("location_coordinates-address_", "");
+          location_init(new_uid);
+          jQuery(".repeater .row input[id*=location_coordinates]").addClass("exsist");
+      }
+  });
 </script>
 <input type="hidden" value="<?php echo $field['value']; ?>" id="location_coordinates-address_<?php echo $uid; ?>" name="<?php echo $field['name']; ?>"/>
 <input type="text" id="location_input_<?php echo $uid; ?>" placeholder="<?php _e('Search for a location','acf-location-field'); ?>" />
